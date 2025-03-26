@@ -55,7 +55,7 @@ class DatabaseWrapper {
   private readonly db: sqlite3.Database;
 
   constructor(filename: string) {
-    this.db = new sqlite3.Database(filename);
+    this.db = new sqlite3.Database(filename, sqlite3.OPEN_READONLY);
   }
 
   query(sql: string, params: any[] = []): Promise<any[]> {
