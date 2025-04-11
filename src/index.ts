@@ -160,21 +160,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           ReadQueryArgsSchema,
         ) as ToolInput,
       },
-      {
-        name: 'write_query',
-        description:
-          'Execute an INSERT, UPDATE, or DELETE query on the SQLite database',
-        inputSchema: zodToJsonSchema(
-          WriteQueryArgsSchema,
-        ) as ToolInput,
-      },
-      {
-        name: 'create_table',
-        description: 'Create a new table in the SQLite database',
-        inputSchema: zodToJsonSchema(
-          CreateTableArgsSchema,
-        ) as ToolInput,
-      },
+      // {
+      //   name: 'write_query',
+      //   description:
+      //     'Execute an INSERT, UPDATE, or DELETE query on the SQLite database',
+      //   inputSchema: zodToJsonSchema(
+      //     WriteQueryArgsSchema,
+      //   ) as ToolInput,
+      // },
+      // {
+      //   name: 'create_table',
+      //   description: 'Create a new table in the SQLite database',
+      //   inputSchema: zodToJsonSchema(
+      //     CreateTableArgsSchema,
+      //   ) as ToolInput,
+      // },
       {
         name: 'list_tables',
         description: 'List all tables in the SQLite database',
