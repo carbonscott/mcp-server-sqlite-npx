@@ -14,12 +14,21 @@ import path from 'path';
 
 // Command line argument parsing
 const args = process.argv.slice(2);
-if (args.length !== 1) {
-  console.error('Usage: mcp-server-sqlite-npx <database-path>');
+// Modified argument parsing to support tool name prefix as a positional argument
+let dbPath: string;
+let prefix = '';
+
+if (args.length === 1) {
+  // Only database path is provided
+  dbPath = path.resolve(args[0]);
+} else if (args.length === 2) {
+  // Database path and prefix are provided
+  dbPath = path.resolve(args[0]);
+  prefix = args[1] + '_'; // Add underscore to the prefix
+} else {
+  console.error('Usage: mcp-server-sqlite-npx <database-path> [prefix]');
   process.exit(1);
 }
-
-const dbPath = path.resolve(args[0]);
 
 // Schema definitions
 const ReadQueryArgsSchema = z.object({
@@ -154,14 +163,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: 'read_query',
+        name: `${prefix}read_query`,
         description: 'Execute a SELECT query on the SQLite database',
         inputSchema: zodToJsonSchema(
           ReadQueryArgsSchema,
         ) as ToolInput,
       },
       // {
-      //   name: 'write_query',
+      //   name: `${prefix}write_query`,
       //   description:
       //     'Execute an INSERT, UPDATE, or DELETE query on the SQLite database',
       //   inputSchema: zodToJsonSchema(
@@ -169,19 +178,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       //   ) as ToolInput,
       // },
       // {
-      //   name: 'create_table',
+      //   name: `${prefix}create_table`,
       //   description: 'Create a new table in the SQLite database',
       //   inputSchema: zodToJsonSchema(
       //     CreateTableArgsSchema,
       //   ) as ToolInput,
       // },
       {
-        name: 'list_tables',
+        name: `${prefix}list_tables`,
         description: 'List all tables in the SQLite database',
         inputSchema: { type: 'object', properties: {} } as ToolInput,
       },
       {
-        name: 'describe_table',
+        name: `${prefix}describe_table`,
         description:
           'Get the schema information for a specific table',
         inputSchema: zodToJsonSchema(
@@ -194,14 +203,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async request => {
   try {
-    const { name, arguments: args } = request.params;
+    const { name: originalName, arguments: args } = request.params;
+    // Strip the prefix from the tool name for internal processing
+    const name = prefix ? originalName.replace(prefix, '') : originalName;
 
     switch (name) {
       case 'read_query': {
         const parsed = ReadQueryArgsSchema.safeParse(args);
         if (!parsed.success) {
           throw new Error(
-            `Invalid arguments for read_query: ${parsed.error}`,
+            `Invalid arguments for ${originalName}: ${parsed.error}`,
           );
         }
         const results = await db.executeReadQuery(parsed.data.query);
@@ -216,7 +227,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const parsed = WriteQueryArgsSchema.safeParse(args);
         if (!parsed.success) {
           throw new Error(
-            `Invalid arguments for write_query: ${parsed.error}`,
+            `Invalid arguments for ${originalName}: ${parsed.error}`,
           );
         }
         const results = await db.executeWriteQuery(parsed.data.query);
@@ -231,7 +242,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const parsed = CreateTableArgsSchema.safeParse(args);
         if (!parsed.success) {
           throw new Error(
-            `Invalid arguments for create_table: ${parsed.error}`,
+            `Invalid arguments for ${originalName}: ${parsed.error}`,
           );
         }
         await db.createTable(parsed.data.query);
@@ -255,7 +266,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
         const parsed = DescribeTableArgsSchema.safeParse(args);
         if (!parsed.success) {
           throw new Error(
-            `Invalid arguments for describe_table: ${parsed.error}`,
+            `Invalid arguments for ${originalName}: ${parsed.error}`,
           );
         }
         const schema = await db.describeTable(parsed.data.table_name);
@@ -267,7 +278,7 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
       }
 
       default:
-        throw new Error(`Unknown tool: ${name}`);
+        throw new Error(`Unknown tool: ${originalName}`);
     }
   } catch (error) {
     const errorMessage =
@@ -287,6 +298,9 @@ async function runServer() {
   // console.log results in JSon exception.
   console.error('SQLite MCP Server running on stdio');
   console.error('Database path:', dbPath);
+  if (prefix) {
+    console.error('Tool name prefix:', prefix.slice(0, -1)); // Remove the underscore when displaying
+  }
 }
 
 runServer().catch(error => {
